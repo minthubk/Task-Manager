@@ -148,6 +148,8 @@ public class TaskManagerApplication extends Application {
 		String googleId = task.getGoogleTask().getId();
 		String where = String.format("%s = '%s'", TASK_GOOGLE_ID, googleId);
 
+		Log.d("update - "+googleId, task.getGoogleTask().getTitle());
+		
 		db.update(TASK_TABLE, values, where, null);
 		
 	}
@@ -228,3 +230,4 @@ public class TaskManagerApplication extends Application {
 
 	
 }
+
