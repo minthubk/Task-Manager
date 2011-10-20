@@ -53,7 +53,7 @@ public class TaskManagerApplication extends Application {
 	/**
 	 * Adds a new task
 	 * */
-	public void addTask(LocalTask task) {
+	public int addTask(LocalTask task) {
 		assert(null != task);
 		
 		if (task.getGoogleTask().getId() != null){
@@ -69,12 +69,12 @@ public class TaskManagerApplication extends Application {
 			
 			if (tasksCursor.isAfterLast()){
 				//not exists, so insert
+				Log.d("addTask - new task", task.getGoogleTask().getTitle());
 				tasksCursor.deactivate();
-				insertOnDB(task);		
+				insertOnDB(task);
+				return CREATE_DB;
 			}else{
-				Log.d("update - from google", task.getGoogleTask().getUpdated().toString());
-				Log.d("update - from app", tasksCursor.getString(1) );			
-				
+								
 				String stringDate = tasksCursor.getString(1);  
 				SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'");  
 				
@@ -85,27 +85,33 @@ public class TaskManagerApplication extends Application {
 					
 					if (localDate.compareTo(googleDate) == 0)
 						Log.d("compareTo","iguals");
-						// do nothing
+						//return EQUAL;
 					else if (localDate.compareTo(googleDate) < 0){
 						Log.d("compareTo","less");
 						//update local content
 						tasksCursor.deactivate();
 						updateOnDB(task);
+						return UPDATE_DB;
 					}else{						
 						Log.d("compareTo","greater");
 						tasksCursor.deactivate();
 						//update google content
+						return UPDATE_GOOGLE;
 					}
 				} catch (ParseException e) {
-					Log.wtf("addTask", e.getMessage());
+					Log.wtf("addTask", e.getMessage());					
 				}  			
 				
 			}
 			
 		}else{
 			//it's not from google			
-			insertOnDB(task);				
+			insertOnDB(task);	
+			return CREATE_GOOGLE;
+			
 		}
+		
+		return -1;
 	}
 	
 	private ContentValues setValues(LocalTask task){
@@ -226,6 +232,11 @@ public class TaskManagerApplication extends Application {
 		}
 		String where = String.format("%s in (%s)", TASK_ID, idList);
 		db.delete(TASK_TABLE, where, null);
+	}
+
+	public String lastUpdate() {		
+		//for example
+		return "2011-10-02T19:03:15.000Z";
 	}
 
 	

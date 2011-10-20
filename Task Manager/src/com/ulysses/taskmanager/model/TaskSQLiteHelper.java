@@ -12,6 +12,14 @@ public class TaskSQLiteHelper extends SQLiteOpenHelper {
 	private static final String DB_NAME 		= "taskDB.sqlite3";
 	private static final int VERSION 			= 1;
 	
+	//Sync Flags
+	public static final int EQUAL			= 0;
+	public static final int UPDATE_DB		= 1;
+	public static final int UPDATE_GOOGLE	= 2;
+	public static final int CREATE_DB		= 3;
+	public static final int CREATE_GOOGLE	= 4;
+	
+	
 	//Table task
 	public static final String TASK_TABLE 		= "task";
 	public static final String TASK_ID 			= "id";

@@ -15,6 +15,8 @@ import com.ulysses.taskmanager.controller.TaskManagerApplication;
 import android.os.AsyncTask;
 import android.util.Log;
 
+import static com.ulysses.taskmanager.model.TaskSQLiteHelper.*;
+
 /**
  * @author ulyfred
  */
@@ -34,15 +36,20 @@ public class GoogleTaskLoaderAsync extends AsyncTask<Object, Void, Boolean> {
 		this.taskAdapter	= (TaskListAdapter) params[2]; 
 		
 		try {
-			List<Task> tasks;
-
-			tasks = service.tasks.list("@default").execute().getItems();		
+			List<Task> tasks;			
+			
+			tasks = service.tasks
+				.list("@default")
+				.setUpdatedMin(app.lastUpdate())
+				.execute().getItems();		
 			if (tasks != null) {
 				for (Task task : tasks) {
 					Log.d("doInBackground", task.getTitle());
 			
 					LocalTask t = new LocalTask(task);
-					app.addTask(t);
+					if (app.addTask(t) == UPDATE_GOOGLE){
+						Log.d("doInBackground", "need to update google's content");
+					}
 				}
 			} else {
 				//unused - no tasks

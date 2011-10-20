@@ -190,7 +190,7 @@ public class SyncTaskActivity extends Activity {
 			List<Task> tasks = service.tasks.list("@default").execute().getItems();
 			if (tasks != null) {
 				for (Task task : tasks) {
-					Log.d("onAuthToken", task.getTitle());
+					Log.d("SyncTaskActivity", task.getTitle());
 
 					LocalTask t = new LocalTask(task);
 					((TaskManagerApplication) getApplication()).addTask(t);

@@ -46,16 +46,15 @@ public class ViewTaskActivity extends ListActivity  {
 	private TaskListAdapter taskAdapter;
 	private TaskManagerApplication taskApp;
 	
-	private static final String AUTH_TOKEN_TYPE = "Manage your tasks";
+	private static final String AUTH_TOKEN_TYPE 	= "Manage your tasks";
+	private static final String PREF_FILE 			= "MyPrefs";
+	private static final int DIALOG_ACCOUNTS 		= 0;
+	private static final int MENU_ACCOUNTS 			= 0;
+	public static final int REQUEST_AUTHENTICATE 	= 0;
 
-	private static final String PREF = "MyPrefs";
-	private static final int DIALOG_ACCOUNTS = 0;
-	private static final int MENU_ACCOUNTS = 0;
-	public static final int REQUEST_AUTHENTICATE = 0;
-
-	private final HttpTransport transport = 
-			AndroidHttp.newCompatibleTransport();
 	private Tasks service;
+	private final HttpTransport transport = AndroidHttp.newCompatibleTransport();
+	
 	private GoogleAccessProtectedResource accessProtectedResource = 
 			new GoogleAccessProtectedResource(null);
 
@@ -74,16 +73,11 @@ public class ViewTaskActivity extends ListActivity  {
         taskAdapter = new TaskListAdapter(this, taskApp.getCurrentTasks());
         setListAdapter(taskAdapter);
         
-        
-        service = new Tasks(transport, accessProtectedResource,	new JacksonFactory());
-		service.setKey(ClientCredentials.KEY);
-		service.setApplicationName("Google Tasks");
-		accountManager = new GoogleAccountManager(this);		
-		gotAccount(true);
+        startGoogleObserver();        
     }
     
     /**
-	 * This method sets everything about this activity
+	 * Sets everything about this activity
 	 * */
 	private void setUpView() {
 		newTaskButton		= (Button) findViewById(R.id.new_button);
@@ -110,13 +104,16 @@ public class ViewTaskActivity extends ListActivity  {
 		});
 	}
 	
+	/**
+	 * Opens the SyncTaskActivity
+	 * */
 	protected void openSyncTaskActivity() {
 		Intent intent = new Intent(ViewTaskActivity.this, SyncTaskActivity.class);
 		startActivity(intent);		
 	}
 
 	/**
-	 * This method opens the NewTaskActivity
+	 * Opens the NewTaskActivity
 	 * */
 	protected void openNewTaskActivity() {
 		Intent intent = new Intent(ViewTaskActivity.this, NewTaskActivity.class);
@@ -124,7 +121,7 @@ public class ViewTaskActivity extends ListActivity  {
 	}
 
 	/**
-	 * This method removes all tasks masks completed
+	 * Removes all tasks masks completed
 	 * */
 	protected void removeTask() {
 		Long[] ids = taskAdapter.removeCompletedTasks();
@@ -132,7 +129,7 @@ public class ViewTaskActivity extends ListActivity  {
 	}
 
 	/**
-	 * This method force reloads the listview on resume the app 
+	 * Force reloads the listview on resume the app 
 	 * */
 	@Override
 	protected void onResume() {
@@ -141,7 +138,7 @@ public class ViewTaskActivity extends ListActivity  {
 	}
 	
 	/**
-	 * This method toggles the task status
+	 * Toggles the task status
 	 * */
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
@@ -152,49 +149,58 @@ public class ViewTaskActivity extends ListActivity  {
 	}
 	
 	
+	protected void startGoogleObserver(){
+		service = new Tasks(transport, accessProtectedResource,	new JacksonFactory());
+		service.setKey(ClientCredentials.KEY);
+		service.setApplicationName(getString(R.string.app_name));
+		accountManager = new GoogleAccountManager(this);		
+		loadAccount(false);
+	}
+	
+	
 	@Override
 	protected Dialog onCreateDialog(int id) {
 		switch (id) {
-		case DIALOG_ACCOUNTS:
-			AlertDialog.Builder builder = new AlertDialog.Builder(this);
-			builder.setTitle("Select a Google account");
-			final Account[] accounts = accountManager.getAccounts();
-			final int size = accounts.length;
-			String[] names = new String[size];
-			for (int i = 0; i < size; i++) {
-				names[i] = accounts[i].name;
+			case DIALOG_ACCOUNTS:
+				return showDialogAccounts();
 			}
-			builder.setItems(names, new DialogInterface.OnClickListener() {
-				public void onClick(DialogInterface dialog, int which) {
-					gotAccount(accounts[which]);
-				}
-			});
-			return builder.create();
-		}
 		return null;
 	}
 	
-	public void gotAccount(boolean tokenExpired) {
-		SharedPreferences settings = getSharedPreferences(PREF, 0);
-		String accountName = settings.getString("accountName", null);
-		Account account = accountManager.getAccountByName(accountName);
-		if (account != null) {
-			if (tokenExpired) {
-				accountManager.invalidateAuthToken(accessProtectedResource
-						.getAccessToken());
-				accessProtectedResource.setAccessToken(null);
-			}
-			gotAccount(account);
-			return;
+	
+	private AlertDialog showDialogAccounts(){
+		
+		final Account[] accounts = accountManager.getAccounts();
+		final int size = accounts.length;
+		
+		String[] names = new String[size];
+		for (int i = 0; i < size; i++) {
+			names[i] = accounts[i].name;
 		}
-		showDialog(DIALOG_ACCOUNTS);
+		
+		AlertDialog.Builder dialogAccounts = 
+				new AlertDialog.Builder(this)
+				.setTitle(getString(R.string.select_account))
+				.setItems(names, new DialogInterface.OnClickListener() {
+					
+					public void onClick(DialogInterface dialog, int which) {
+						setAccount(accounts[which]);
+					}
+					
+				});
+		
+		return dialogAccounts.create();
 	}
-
-	public void gotAccount(final Account account) {
-		SharedPreferences settings = getSharedPreferences(PREF, 0);
+	
+	
+	public void setAccount(final Account account) {
+		
+		//Set account on preferences
+		SharedPreferences settings = getSharedPreferences(PREF_FILE, MODE_PRIVATE);
 		SharedPreferences.Editor editor = settings.edit();
 		editor.putString("accountName", account.name);
 		editor.commit();
+		
 		accountManager.manager.getAuthToken(account, AUTH_TOKEN_TYPE, true,
 				new AccountManagerCallback<Bundle>() {
 
@@ -202,17 +208,17 @@ public class ViewTaskActivity extends ListActivity  {
 						try {
 							Bundle bundle = future.getResult();
 							if (bundle.containsKey(AccountManager.KEY_INTENT)) {
-								Intent intent = bundle
-										.getParcelable(AccountManager.KEY_INTENT);
-								intent.setFlags(intent.getFlags()
-										& ~Intent.FLAG_ACTIVITY_NEW_TASK);
-								startActivityForResult(intent,
-										REQUEST_AUTHENTICATE);
-							} else if (bundle
-									.containsKey(AccountManager.KEY_AUTHTOKEN)) {
-								accessProtectedResource.setAccessToken(bundle
-										.getString(AccountManager.KEY_AUTHTOKEN));
+								
+								Intent intent = bundle.getParcelable(AccountManager.KEY_INTENT);
+								intent.setFlags(intent.getFlags() & ~Intent.FLAG_ACTIVITY_NEW_TASK);								
+								
+								startActivityForResult(intent,REQUEST_AUTHENTICATE);
+							} else if (bundle.containsKey(AccountManager.KEY_AUTHTOKEN)) {
+								
+								Log.d("setAccount", bundle.getString(AccountManager.KEY_AUTHTOKEN));
+								accessProtectedResource.setAccessToken(bundle.getString(AccountManager.KEY_AUTHTOKEN));								
 								onAuthToken();
+								
 							}
 						} catch (Exception e) {
 							handleException(e);
@@ -221,13 +227,38 @@ public class ViewTaskActivity extends ListActivity  {
 				}, null);
 	}
 	
+	public void loadAccount(boolean tokenExpired) {
+		
+		//Load account from preferences
+		SharedPreferences settings = getSharedPreferences(PREF_FILE, 0);
+		String accountName = settings.getString("accountName", null);
+		Account account = accountManager.getAccountByName(accountName);
+		
+		if (account != null) {
+			
+			if (tokenExpired) {
+				
+				accountManager.invalidateAuthToken(accessProtectedResource.getAccessToken());
+				accessProtectedResource.setAccessToken(null);
+				
+			}
+			
+			setAccount(account);
+		
+		}else
+			showDialog(DIALOG_ACCOUNTS);
+		
+	}
+
+	
+	
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
 		switch (requestCode) {
 		case REQUEST_AUTHENTICATE:
 			if (resultCode == RESULT_OK) {
-				gotAccount(false);
+				loadAccount(false);
 			} else {
 				showDialog(DIALOG_ACCOUNTS);
 			}
@@ -244,14 +275,16 @@ public class ViewTaskActivity extends ListActivity  {
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
 		switch (item.getItemId()) {
-		case MENU_ACCOUNTS:
-			showDialog(DIALOG_ACCOUNTS);
-			return true;
+			case MENU_ACCOUNTS:
+				showDialog(DIALOG_ACCOUNTS);
+				return true;
 		}
 		return false;
 	}
 
 	public void handleException(Exception e) {
+		Log.e("handleException", "not good");
+		
 		e.printStackTrace();
 		if (e instanceof HttpResponseException) {
 			HttpResponse response = ((HttpResponseException) e).getResponse();
@@ -262,7 +295,7 @@ public class ViewTaskActivity extends ListActivity  {
 				e1.printStackTrace();
 			}			
 			if (statusCode == 401) {				
-				gotAccount(true);
+				loadAccount(true);
 				return;
 			}
 		}		
@@ -276,21 +309,20 @@ public class ViewTaskActivity extends ListActivity  {
 		new Thread(new Runnable() {			
 			
 			public void run() {
-				
-//				try {					
-//					while(true){
-//						Thread.sleep(1000);
-						loaderAsync.execute(service,taskApp,taskAdapter);	
-//					}					
-//				} catch (InterruptedException e) {
-//					e.printStackTrace();
-//				}
+
+				try {
+					
+					service.tasklists.list().execute();
+					loaderAsync.execute(service,taskApp,taskAdapter);	
+					
+				} catch (IOException e) {
+					handleException(e);
+				}
 							
 			}
 			
 		}).start();
 	}
-	
 	
 	
 }
