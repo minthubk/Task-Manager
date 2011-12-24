@@ -1,0 +1,17 @@
+# Google Key #
+##############
+lib/shared-sample-android-1.0.0.jar
+
+# bin / compiled sources #
+##########################
+bin/classes/*
+bin/res/*
+
+# settings and whatever #
+#########################
+.settings/*
+
+# OS crap #
+###########
+Thumbs.db
+
