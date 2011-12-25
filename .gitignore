@@ -6,6 +6,7 @@ lib/shared-sample-android-1.0.0.jar
 ##########################
 bin/*
 *.class
+bin/*.apk
 
 # settings and whatever #
 #########################
